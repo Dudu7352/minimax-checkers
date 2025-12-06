@@ -1,3 +1,4 @@
+from ast import Return
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Literal
@@ -32,20 +33,28 @@ class GameState:
     
     @staticmethod
     def _is_capture(dx: int, dy: int) -> bool:#added
-        return max(abs(dx),abs(dy))>1
+        if max(abs(dx),abs(dy)) == 1:
+            return False
+        return True
         #sprawdza czy ruch jest biciem
 
     @property
     def opponent(self):
         return 'b' if self.current_player == 'r' else 'r'
     
+    def canMoveOneTile(self, from_x: int, from_y: int, to_x: int, to_y: int, figure: chr):
+        if figure == 'b':
+            return from_x < to_x 
+        if figure == 'r':
+            return from_x > to_x 
+        return True
+
+
     def with_moves(self, from_x: int, from_y: int, to_x: int, to_y) -> "GameState":
         if from_x < 0 or from_x > 7 or from_y < 0 or from_y > 7 or (from_x + from_y)%2==0:#corrected
             raise ValueError(f"Incorrect from: {(from_x, from_y)}")
         if to_x < 0 or to_x > 7 or to_y < 0 or to_y > 7 or (to_x + to_y)%2==0:
             raise ValueError(f"Incorrect from: {(to_x, to_y)}")
-        if from_x == to_x and from_y == to_y:#added
-            raise ValueError(f"Tried to go to the same place")
         if self.board[to_y][to_x] != " ":
             raise ValueError(
                 f"Cannot move to a non-empty tile {(to_x, to_y)} which has value '{self.board[to_y][to_x]}'"
@@ -56,18 +65,15 @@ class GameState:
             )
         delta_x, delta_y = to_x - from_x, to_y - from_y
 
-        new_state: 'GameState' | None = None
-
-        if not GameState._is_capture(delta_x, delta_y):
-            #tu musi byc jakas funkcja ktora sprawdza czy ten ruch jest mozliwy
+        new_state: 'GameState' | None = None #zmienic deep copy na recursive 
+        #bedziemy sprawdzac czy ruch jest mozliwy w zaleznosci od koloru i od tego czy jest pionkiem
+        if not GameState._is_capture(delta_x, delta_y) and GameState.canMoveOneTile(from_x,from_y,to_x,to_y, self.board[from_x][from_y]):
             new_state = deepcopy(self)
             new_state.board[to_y][to_x] = self.board[from_y][from_x]
             new_state.board[from_y][from_x] = " "
-            
-            if new_state.board[from_y][from_x] == " ":
-                new_state.current_player = "b" if self.current_player == "r" else "r"
-                #jezeli udalo sie zrobic ruch to zamieniamy gracza
-        else:
+            new_state.current_player = "b" if self.current_player == "r" else "r"
+                
+        elif GameState._is_capture(delta_x, delta_y):
             #tu musi byc jakas funkcja ktora sprawdza czy ten ruch jest mozliwy
             new_state = deepcopy(self)
             new_state.board[to_y][to_x] = self.board[from_y][from_x]
