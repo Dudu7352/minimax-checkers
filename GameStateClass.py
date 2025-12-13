@@ -1,4 +1,3 @@
-from ast import Return
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Literal
@@ -25,6 +24,9 @@ class GameState:
     def repr_board(self) -> str:
         return "\n".join("".join(t for t in row) for row in self.board)
 
+    def __hash__(self):
+        return hash(self.current_player + self.repr_board())
+
     @staticmethod
     def _is_diagonal(dx: int, dy: int) -> bool:
         return abs(dx) == abs(dy)
@@ -48,46 +50,93 @@ class GameState:
         if figure == 'r':
             return from_x > to_x 
         return True
+    
+    @staticmethod
+    def in_bound(x, y):
+        return 0 <= x < 8 and 0 <= y < 8
+    
+    def bfs(self, x, y) -> list["GameState"]:
+        next_capture_states: set["GameState"] = set()
+        directions = [[-1,-1], [-1, 1], [1,1], [1,-1]]
+        q = [(self, x, y)]
+        
+        while q:
+            current_game, curr_x, curr_y = q.pop(0)
+            capture_found = False
+            for dx, dy in directions:
+                nx, ny = curr_x + dx, curr_y+dy
+                if GameState.in_bound(nx, ny) and current_game.board[ny][nx] == self.opponent and GameState.in_bound(nx+dx, ny+dy) and current_game.board[ny+dy][nx+dx] == ' ':
+                    q.append((current_game.with_move(curr_x, curr_y, nx+dx, ny+dy), nx+dx, ny+dy))
+                    capture_found = True
+                    
+            if not capture_found:
+                next_capture_states.add(current_game)
+
+        return list(next_capture_states)
+    
+    def allowed_checker_y_direction(self) -> int:
+        return -1 if self.current_player == "r" else 1
 
 
-    def with_moves(self, from_x: int, from_y: int, to_x: int, to_y) -> "GameState":
-        if from_x < 0 or from_x > 7 or from_y < 0 or from_y > 7 or (from_x + from_y)%2==0:#corrected
-            raise ValueError(f"Incorrect from: {(from_x, from_y)}")
-        if to_x < 0 or to_x > 7 or to_y < 0 or to_y > 7 or (to_x + to_y)%2==0:
-            raise ValueError(f"Incorrect from: {(to_x, to_y)}")
-        if self.board[to_y][to_x] != " ":
-            raise ValueError(
-                f"Cannot move to a non-empty tile {(to_x, to_y)} which has value '{self.board[to_y][to_x]}'"
-            )
-        if self.board[from_y][from_x].lower() != self.current_player:
-            raise ValueError(
-                f"Cannot move from tile {(to_x, to_y)} on {self.current_player} turn (tile has value '{self.board[from_y][from_x]}')"
-            )
+    def next_states(self) -> list["GameState"]:
+        """
+        Generate all possible game states by making all possible moves in one turn
+
+        :return: list of all game states with next turn
+        :rtype: GameState
+        """
+        # generalnie wymagania są takie:
+        # 1. działa
+        next_possible_states: list["GameState"] = []
+        has_to_capture = False
+        next_moves = [[-1,-1], [-1, 1], [1,1], [1,-1]]
+        
+        for y in range(8):
+            for x in range(8):
+                if self.board[y][x] == " ":
+                    continue
+                tile_player = self.board[y][x].lower()
+                is_super = self.board[y][x].upper() == self.board[y][x]
+                if self.current_player != tile_player:
+                    continue
+                
+                for dx, dy in next_moves:
+                    nx, ny = x+dx, y+dy
+
+                    if not GameState.in_bound(nx, ny):
+                        continue
+
+                    if self.board[ny][nx] == " " \
+                       and not has_to_capture \
+                       and (is_super or self.allowed_checker_y_direction() == dy):
+                        next_possible_states.append(self.with_move(x, y, nx, ny))
+                    
+                    if self.board[ny][nx] != " " and self.board[ny][nx].lower() == self.opponent:
+                        next_captures_states = self.bfs(x, y)
+                        if has_to_capture:
+                            next_possible_states.extend(next_captures_states)
+                        else:
+                            next_possible_states = next_captures_states
+                            has_to_capture = True
+                        break
+        return next_possible_states
+
+    def with_move(self, from_x: int, from_y: int, to_x: int, to_y: int) -> "GameState":
+        """
+        Perform a valid move and 
+        """
         delta_x, delta_y = to_x - from_x, to_y - from_y
 
-        new_state: 'GameState' | None = None #zmienic deep copy na recursive 
-        #bedziemy sprawdzac czy ruch jest mozliwy w zaleznosci od koloru i od tego czy jest pionkiem
-        if not GameState._is_capture(delta_x, delta_y) and GameState.canMoveOneTile(from_x,from_y,to_x,to_y, self.board[from_x][from_y]):
-            new_state = deepcopy(self)
-            new_state.board[to_y][to_x] = self.board[from_y][from_x]
-            new_state.board[from_y][from_x] = " "
-            new_state.current_player = "b" if self.current_player == "r" else "r"
-                
-        elif GameState._is_capture(delta_x, delta_y):
-            #tu musi byc jakas funkcja ktora sprawdza czy ten ruch jest mozliwy
-            new_state = deepcopy(self)
-            new_state.board[to_y][to_x] = self.board[from_y][from_x]
-            new_state.board[from_y][from_x] = " "
-            
-            if new_state.board[from_y][from_x] == " ":
-                new_state.current_player = "b" if self.current_player == "r" else "r"
-                #jezeli udalo sie zrobic ruch to zamieniamy gracza
+        new_state = deepcopy(self)
+        if GameState._is_capture(delta_x, delta_y):
+            mid_x, mid_y = from_x + delta_x // 2, from_y + delta_y // 2
+            new_state.board[mid_y][mid_x] = " " 
+        else:
+            new_state.current_player = self.opponent
         
-        if new_state is None:
-            raise ValueError(
-                f"Move from {(from_x, from_y)} to {(to_x, to_y)} cannot be made"
-            )
-
+        new_state.board[to_y][to_x] = new_state.board[from_y][from_x]
+        new_state.board[from_y][from_x] = " "
+        
         return new_state
 
     def count_score(self) -> float:
@@ -110,3 +159,11 @@ class GameState:
         return score
 
 
+if __name__ == "__main__":
+    game = GameState()
+    states = game.next_states()
+    print("# States:")
+    for i, state in enumerate(states, start=1):
+        print(f"## Option: {i}")
+        print(state)
+        print(f"{state.repr_board()}")
