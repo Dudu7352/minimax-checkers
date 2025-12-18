@@ -65,7 +65,7 @@ class GameState:
             capture_found = False
             for dx, dy in directions:
                 nx, ny = curr_x + dx, curr_y+dy
-                if GameState.in_bound(nx, ny) and current_game.board[ny][nx] == self.opponent and GameState.in_bound(nx+dx, ny+dy) and current_game.board[ny+dy][nx+dx] == ' ':
+                if GameState.in_bound(nx, ny) and (current_game.board[ny][nx] == self.opponent or current_game.board[ny][nx] == self.opponent.upper()) and GameState.in_bound(nx+dx, ny+dy) and current_game.board[ny+dy][nx+dx] == ' ':
                     q.append((current_game.with_move(curr_x, curr_y, nx+dx, ny+dy), nx+dx, ny+dy))
                     capture_found = True
                     
