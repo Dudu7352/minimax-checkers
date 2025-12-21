@@ -1,10 +1,11 @@
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Literal
+from math import inf
 
 Tile = Literal['b','B','r','R',' ']
-
-def new_board() -> list[str]:#correct
+"""
+def new_board() -> list[str]:
     board = list()
     board.append(list(" b b b b"))
     board.append(list("b b b b "))
@@ -15,11 +16,79 @@ def new_board() -> list[str]:#correct
     board.append(list(" r r r r"))
     board.append(list("r r r r "))
     return board
+"""
+
+def new_board() -> list[str]:
+    board = list()
+    board.append(list("     b  "))
+    board.append(list("  b     "))
+    board.append(list("        "))
+    board.append(list("  r     "))
+    board.append(list("        "))
+    board.append(list("        "))
+    board.append(list("        "))
+    board.append(list("        "))
+    return board
+
+class MiniMaxGameTree:
+    depth: int
+    root: "GameNode"
+
+    def __init__(self, root_state: "GameNode", depth: int) -> None:
+        self.root: "GameNode" = root_state
+        self.depth = depth
+    
+    def minimax_move(self, maximize: Literal['r', 'b']) -> None:
+        score, best_child = self.root.best_minimax(self.root.depth + self.depth, maximize)
+        print(f"best move has {score=}")
+        self.root = best_child
+
+@dataclass
+class GameNode:
+    state: "GameState"
+    depth: int
+    children: list["GameNode"] | None = field(default=None)
+
+    def __init__(self, state, new_depth):
+        self.depth = new_depth
+        self.state = state
+        self.children = None
+
+    # def populate_with_depth(self, max_depth: int) -> None:
+    #     if max_depth <= self.depth:
+    #         return
+    #     if self.children is None:
+    #         self.children = [GameNode(state, self.depth+1) for state in self.state.next_states()]
+    #     for child in self.children:
+    #         child.populate_with_depth(max_depth)
+
+    def best_minimax(self, max_depth: int, maximize: Literal['r', 'b']) -> tuple[int, "GameNode | None"]:
+        if max_depth == self.depth:
+            return self.state.score, self.state
+
+        if self.children is None:
+            self.children = [GameNode(state, self.depth+1) for state in self.state.next_states()]
+        best_score: float | None = inf * (1 if maximize == 'b' else -1)
+        best_child: "GameNode" | None = None
+        for child in self.children:
+            child_score, _ = child.best_minimax(max_depth, maximize)
+            is_score_better = best_score < child_score
+            if maximize != 'r':
+                is_score_better = best_score > child_score
+            if best_score is None or is_score_better:
+                best_score = child_score
+                best_child = child
+        return best_score, best_child
+
 
 @dataclass
 class GameState:
     board: list[list[Tile]] = field(default_factory=new_board)
     current_player: Literal['r','b'] = field(default='b')
+    score: float = field(init=None)
+
+    def __post_init__(self) -> None:
+        self.score = self._count_score()
 
     def repr_board(self) -> str:
         return "\n".join("".join(t for t in row) for row in self.board)
@@ -54,7 +123,7 @@ class GameState:
     @staticmethod
     def in_bound(x, y):
         return 0 <= x < 8 and 0 <= y < 8
-    
+
     def bfs(self, x, y) -> list["GameState"]:
         next_capture_states: set["GameState"] = set()
         directions = [[-1,-1], [-1, 1], [1,1], [1,-1]]
@@ -65,7 +134,7 @@ class GameState:
             capture_found = False
             for dx, dy in directions:
                 nx, ny = curr_x + dx, curr_y+dy
-                if GameState.in_bound(nx, ny) and (current_game.board[ny][nx] == self.opponent or current_game.board[ny][nx] == self.opponent.upper()) and GameState.in_bound(nx+dx, ny+dy) and current_game.board[ny+dy][nx+dx] == ' ':
+                if GameState.in_bound(nx, ny) and current_game.board[ny][nx].lower() == self.opponent and GameState.in_bound(nx+dx, ny+dy) and current_game.board[ny+dy][nx+dx] == ' ':
                     q.append((current_game.with_move(curr_x, curr_y, nx+dx, ny+dy), nx+dx, ny+dy))
                     capture_found = True
                     
@@ -139,7 +208,7 @@ class GameState:
         
         return new_state
 
-    def count_score(self) -> float:
+    def _count_score(self) -> float:
         r = R = b = B = 0
         for row in self.board:
             for tile in row:
@@ -160,10 +229,11 @@ class GameState:
 
 
 if __name__ == "__main__":
-    game = GameState()
-    states = game.next_states()
-    print("# States:")
-    for i, state in enumerate(states, start=1):
-        print(f"## Option: {i}")
-        print(state)
-        print(f"{state.repr_board()}")
+    nodeusz = GameNode(GameState(), 0)
+    tree = MiniMaxGameTree(nodeusz, 3)
+    del nodeusz
+    print("======")
+    print(tree.root.state.repr_board())
+    tree.minimax_move(maximize='b')
+    print("======")
+    print(tree.root.state.repr_board())
