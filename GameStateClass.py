@@ -153,23 +153,24 @@ class GameState:
     def bfs(self, x, y) -> list["GameState"]:
         next_capture_states: set["GameState"] = set()
         directions = [[-1, -1], [-1, 1], [1, 1], [1, -1]]
-        q = [(self, x, y)]
+        q = [(self, x, y, False)]
 
         while q:
-            current_game, curr_x, curr_y = q.pop(0)
+            current_game, curr_x, curr_y, has_captured = q.pop(0)
             capture_found = False
             for dx, dy in directions:
                 nx, ny = curr_x + dx, curr_y+dy
                 if GameState.in_bound(nx, ny) and current_game.board[ny][nx].lower() == self.opponent and GameState.in_bound(nx+dx, ny+dy) and current_game.board[ny+dy][nx+dx] == ' ':
                     print(current_game.repr_board())
-                    q.append((current_game.with_move(curr_x, curr_y, nx+dx, ny+dy), nx+dx, ny+dy))
+                    q.append((current_game.with_move(curr_x, curr_y, nx+dx, ny+dy), nx+dx, ny+dy, True))
                     print(current_game.repr_board())
                     capture_found = True
                     
             if not capture_found:
-                print("!!!")
-                current_game.current_player = current_game.opponent
-                next_capture_states.add(current_game)
+                if has_captured:
+                    print("!!!")
+                    current_game.current_player = current_game.opponent
+                    next_capture_states.add(current_game)
 
         return list(next_capture_states)
 
@@ -211,12 +212,13 @@ class GameState:
                     
                     if self.board[ny][nx] != " " and self.board[ny][nx].lower() == self.opponent:
                         next_captures_states = self.bfs(x, y)
-                        if has_to_capture:
-                            next_possible_states.extend(next_captures_states)
-                        else:
-                            next_possible_states = next_captures_states
-                            has_to_capture = True
-                        break
+                        if next_captures_states:
+                            if has_to_capture:
+                                next_possible_states.extend(next_captures_states)
+                            else:
+                                next_possible_states = next_captures_states
+                                has_to_capture = True
+                            break
         return next_possible_states
 
     def with_move(self, from_x: int, from_y: int, to_x: int, to_y: int) -> "GameState":
