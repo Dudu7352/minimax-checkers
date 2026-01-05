@@ -1,7 +1,9 @@
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Literal
+import math
 from math import inf
+
 
 Tile = Literal["b", "B", "r", "R", " "]
 """
@@ -51,26 +53,48 @@ class MiniMaxGameTree:
     (innemu botowi) lub graczowi do wyświetlenia w jakimś interfejsie dla niego. Ten interfejs to kolejny
     krok, który chcemy zrobić (jakiś w terminalu), żeby można było grać z botem.
     """
-    def minimax_move(self, new_root: "None | GameState" = None, make_first_move=False) -> "GameState":
+    def minimax_move(self, new_root: "GameNode", make_first_move=False) -> "GameNode":
         if not make_first_move:
             x = 0
             for i, children_root in enumerate(self.root.children):
-                if children_root == new_root:
+                if children_root.state == new_root.state:
                     x = 1
                     self.root = self.root.children[i]
                     break
             if x == 0:
                 raise Exception("Oszust, nie ma takiego stanu")
             
-            self.root.populate_with_depth(self.depth)
+            #self.root.populate_with_depth(self.depth) ???(policzyc)
         
         score, best_child = self.root.best_minimax(self.root.depth + self.depth)
+        #best_child_state = best_child
         print(f"best move has {score=}")
-        self.root = best_child
-        self.root.populate_with_depth(self.depth)
+        if best_child:
+            self.root = best_child
+            self.root.populate_with_depth(self.depth)
+            print(f"Wybrany ruch:\n{self.root.state.repr_board()}")
+            return self.root
+        else:
+            print("koniec Gry")
+            return None
 
-        return self.root.state
-
+    
+    def dfs(self, node: "GameNode", stack, possible_paths):
+        stack.append(node.state)
+        if not node.children:
+            possible_paths.append(list(stack))
+        else:
+            for child in node.children:
+                self.dfs(child, stack, possible_paths)
+        stack.pop()
+        
+    def print_paths(self):
+        possible_paths = []
+        self.dfs(self.root, [], possible_paths)
+        for path in possible_paths:
+            possible = [board.repr_board() for board in path]
+            print(side_by_side(*possible))
+            print("\n")
 
 def side_by_side(*strs: list[str]):
     str_arrs = [s.split("\n") for s in strs]
@@ -93,10 +117,10 @@ class GameNode:
         self.children = None
 
     def __hash__(self):
-        return hash(self.state)
+        return self.state.__hash__()
 
     def populate_with_depth(self, max_depth: int) -> None:
-        if max_depth <= self.depth:
+        if math.isinf(self.state.score) or max_depth <= self.depth:
             return
         if self.children is None:
             self.children = [GameNode(state, self.depth+1) for state in self.state.next_states()]
@@ -112,7 +136,7 @@ class GameNode:
 
         best_score: float | None = inf * (1 if self.state.current_player == "b" else -1)
 
-        best_child: "GameNode" | None = None
+        best_child: "GameNode | None" = None
         for child in self.children:
             child_score, _ = child.best_minimax(max_depth)
             is_score_better = best_score < child_score
@@ -121,6 +145,7 @@ class GameNode:
             if best_score is None or is_score_better:
                 best_score = child_score
                 best_child = child
+        #print(best_child)
         return best_score, best_child
 
 
@@ -135,7 +160,7 @@ class GameState:
 
     def repr_board(self) -> str:
         topbar = f"+-curr:{self.current_player}-+"
-        btmbar = "+--------+"
+        btmbar = f"+--------+\nscore:{self.score}"
         result = "\n".join("|" + "".join(t for t in row) + "|" for row in self.board)
         return f"{topbar}\n{result}\n{btmbar}"
 
@@ -183,14 +208,13 @@ class GameState:
             for dx, dy in directions:
                 nx, ny = curr_x + dx, curr_y+dy
                 if GameState.in_bound(nx, ny) and current_game.board[ny][nx].lower() == self.opponent and GameState.in_bound(nx+dx, ny+dy) and current_game.board[ny+dy][nx+dx] == ' ':
-                    print(current_game.repr_board())
+                
                     q.append((current_game.with_move(curr_x, curr_y, nx+dx, ny+dy), nx+dx, ny+dy, True))
-                    print(current_game.repr_board())
+                    
                     capture_found = True
                     
             if not capture_found:
                 if has_captured:
-                    print("!!!")
                     current_game.current_player = current_game.opponent
                     next_capture_states.add(current_game)
 
@@ -283,12 +307,23 @@ class GameState:
             return inf
         score = (r - b) + (3 / 2) * (R - B)
         return score
-
-
+    
 if __name__ == "__main__":
-    bot = MiniMaxGameTree(GameNode(GameState(), 0), 3)
-    bot.minimax_move(make_first_move=True)
-    print(bot.root.state.repr_board())
+    bot1 = MiniMaxGameTree(GameNode(GameState(new_board()), 0), 3)
+    bot2 = MiniMaxGameTree(GameNode(GameState(new_board()), 0), 5)
+    
+    #bot1.print_paths()    
+    #bot2.print_paths()
+    
+    state1 = bot1.minimax_move(make_first_move=True, new_root=GameNode(GameState(new_board()), 0))
+    print(f"STATE 1 = {state1.state.repr_board()}")
+    #print(f"Root2:\n{bot2.root.state.repr_board()}")
+    state2 = bot2.minimax_move(state1)
+    print(f"STATE 2 = {state2.state.repr_board()}")
+    
+    # for i in range(5):
+    #     state2 = bot2.minimax_move(state1)
+    #     state1 = bot1.minimax_move(state2)
     """
     nodeusz = GameNode(GameState(), 0)
     print(nodeusz.state.current_player)
