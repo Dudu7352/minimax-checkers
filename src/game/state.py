@@ -1,9 +1,10 @@
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Literal
 from math import inf
+from typing import Literal
 
 Tile = Literal["b", "B", "r", "R", " "]
+
 
 def new_board() -> list[str]:
     board = list()
@@ -16,121 +17,6 @@ def new_board() -> list[str]:
     board.append(list(" r r r r"))
     board.append(list("r r r r "))
     return board
-
-class MiniMaxGameTree:
-    tree_depth: int
-    root: "GameNode"
-
-    def __init__(self, root_node: "GameNode", tree_depth: int) -> None:
-        self.root: "GameNode" = root_node
-        self.tree_depth: int = tree_depth
-
-    def minimax_move(self, first_move: bool, root_node: "GameNode") -> "GameNode":
-        if not first_move:
-            self.root.init_children()
-            for child in self.root.children:
-                if child == root_node:
-                    self.root = child
-                    break
-            else:
-                raise Exception("No such state in the tree")
-
-        _, best_child = self.root.best_minimax(
-            self.root.state.current_player == "r",
-            self.tree_depth + self.root.node_depth,
-        )
-
-        if not best_child:
-            return None
-
-        self.root = best_child
-        return self.root
-
-    def dfs(self, node: "GameNode", stack: list["GameState"], possible_paths: list[list["GameState"]]) -> None:
-        stack.append(node.state)
-        if not node.children:
-            possible_paths.append(list(stack))
-        else:
-            for child in node.children:
-                self.dfs(child, stack, possible_paths)
-        stack.pop()
-
-    def print_paths(self) -> None:
-        possible_paths = []
-        self.dfs(self.root, [], possible_paths)
-        for path in possible_paths:
-            possible = [board.__str__() for board in path]
-            print(side_by_side(*possible))
-            print("\n")
-
-def side_by_side(*strs: list[str]):
-    str_arrs = [s.split("\n") for s in strs]
-    result = ""
-    for i in range(len(str_arrs[0])):
-        result += "    ".join(s[i] for s in str_arrs)
-        result += "\n"
-    return result
-
-
-@dataclass
-class GameNode:
-    state: "GameState"
-    node_depth: int
-    children: list["GameNode"] | None = field(default=None)
-
-    def __hash__(self) -> None:
-        return self.state.__hash__()
-
-    def __eq__(self, other: "GameState"):
-        if not isinstance(other, GameNode):
-            return False
-        return self.state == other.state
-    
-    def __str__(self) -> str:
-        return self.state.__str__()
-
-    def init_children(self) -> None:
-        if self.children is None:
-            self.children = [
-                GameNode(state, self.node_depth + 1)
-                for state in self.state.next_states()
-            ]
-
-    def best_minimax(
-        self, maximizing_player: bool, tree_depth: int, alpha: float = -inf, beta: float = inf
-    ) -> tuple[int, "GameNode | None"]:
-        if self.node_depth > tree_depth or abs(self.state.score) == inf:
-            return self.state.score, None  # score and GameNode
-        
-        self.init_children()
-
-        if not self.children:
-            return self.state.score, None
-
-        if maximizing_player:
-            best_score = -inf
-            best_child = None
-            for child in self.children:
-                score, _ = child.best_minimax(not maximizing_player, tree_depth, alpha, beta)
-                if best_score <= score:
-                    best_score = score
-                    best_child = child
-                alpha = max(best_score, alpha)
-                if alpha >= beta:
-                   break
-            return best_score, best_child
-        else:
-            best_score = inf
-            best_child = None
-            for child in self.children:
-                score, _ = child.best_minimax(not maximizing_player, tree_depth, alpha, beta)
-                if best_score >= score:
-                    best_score = score
-                    best_child = child
-                beta = min(best_score, beta)
-                if alpha >= beta:
-                   break
-            return best_score, best_child
 
 
 @dataclass
@@ -306,26 +192,3 @@ class GameState:
             return inf
         score = (r - b) + (3 / 2) * (R - B)
         return score
-    
-if __name__ == "__main__":
-    bot1 = MiniMaxGameTree(GameNode(GameState(new_board()), 0), 6)  # b player
-    bot2 = MiniMaxGameTree(GameNode(GameState(new_board()), 0), 3)  # r player
-
-    child_node_1 = bot1.minimax_move(True, None)
-    print(str(child_node_1.state))
-
-    while True:
-        child_node_2 = bot2.minimax_move(False, child_node_1)
-        if not child_node_2:
-            break
-        print(str(child_node_2.state))
-        child_node_1 = bot1.minimax_move(False, child_node_2)
-        
-        if not child_node_1:
-            break
-        print(str(child_node_1.state))
-        
-        if abs(child_node_2.state.score) == inf or abs(child_node_1.state.score) == inf:
-            break
-        
-    print("game over")
