@@ -1,5 +1,6 @@
 from checkers import GameNode, GameState, MiniMaxGameBot, new_board
 from checkers.random import RandomBot
+from math import inf
 
 if __name__ == "__main__":
     bot1 = MiniMaxGameBot(GameNode(GameState(new_board()), 0), 2)  # b player
@@ -20,6 +21,7 @@ if __name__ == "__main__":
             break
         print(str(child_state_1))
         
-        
+        if abs(child_state_1.score) == inf or abs(child_state_2.score) == inf:
+            break
         
     print("game over")
