@@ -1,6 +1,4 @@
-from checkers.node import GameNode
-from checkers.minimax import MiniMaxGameTree
-from checkers.state import GameState, new_board
+from checkers import GameNode, GameState, MiniMaxGameTree, new_board
 from math import inf
 
 if __name__ == "__main__":
