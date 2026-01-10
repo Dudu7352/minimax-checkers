@@ -1,6 +1,6 @@
-from game.node import GameNode
-from game.print import side_by_side
-from game.state import GameState
+from checkers.node import GameNode
+from checkers.print import side_by_side
+from checkers.state import GameState
 
 
 class MiniMaxGameTree:

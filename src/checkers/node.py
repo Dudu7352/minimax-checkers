@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from math import inf
-from game.state import GameState
+from checkers.state import GameState
 
 @dataclass
 class GameNode:
