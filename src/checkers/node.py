@@ -29,7 +29,7 @@ class GameNode:
     def best_minimax(
         self, maximizing_player: bool, tree_depth: int, alpha: float = -inf, beta: float = inf
     ) -> tuple[int, "GameNode | None"]:
-        if self.node_depth > tree_depth or abs(self.state.score) == inf:
+        if self.node_depth >= tree_depth or abs(self.state.score) == inf:
             return self.state.score, None  # score and GameNode
         
         self.init_children()
@@ -45,9 +45,9 @@ class GameNode:
                 if best_score <= score:
                     best_score = score
                     best_child = child
-                alpha = max(best_score, alpha)
-                if alpha >= beta:
-                   break
+                if best_score >= beta:
+                    break
+                alpha = max(alpha, best_score)
             return best_score, best_child
         else:
             best_score = inf
@@ -57,7 +57,7 @@ class GameNode:
                 if best_score >= score:
                     best_score = score
                     best_child = child
-                beta = min(best_score, beta)
-                if alpha >= beta:
-                   break
+                if best_score <= alpha:
+                    break
+                beta = min(beta, best_score)
             return best_score, best_child

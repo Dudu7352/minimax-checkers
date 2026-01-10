@@ -6,7 +6,7 @@ from typing import Literal
 Tile = Literal["b", "B", "r", "R", " "]
 
 
-def new_board() -> list[str]:
+def new_board() -> list[list[str]]:
     board = list()
     board.append(list(" b b b b"))
     board.append(list("b b b b "))
