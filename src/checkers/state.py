@@ -1,9 +1,7 @@
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Literal
-import math
 from math import inf
-
+from typing import Literal
 
 Tile = Literal["b", "B", "r", "R", " "]
 
@@ -21,128 +19,6 @@ def new_board() -> list[str]:
     return board
 
 
-
-
-class MiniMaxGameTree:
-    tree_depth: int
-    root: "GameNode"
-
-    def __init__(self, root_node: "GameNode", tree_depth: int) -> None:
-        self.root: "GameNode" = root_node
-        self.tree_depth = tree_depth
-
-    def minimax_move(self, first_move, root_node) -> "GameNode":
-        if not first_move:
-            self.root.init_children()
-            for child in self.root.children:
-                if child == root_node:
-                    self.root = child
-                    break
-            else:
-                raise Exception("No such state in the tree")
-
-        _, best_child = self.root.best_minimax(
-            self.root.state.current_player == "r",
-            self.tree_depth + self.root.node_depth,
-        )
-
-        if not best_child:
-            return None
-
-        self.root = best_child
-        return self.root
-
-    def dfs(self, node: "GameNode", stack, possible_paths):
-        stack.append(node.state)
-        if not node.children:
-            possible_paths.append(list(stack))
-        else:
-            for child in node.children:
-                self.dfs(child, stack, possible_paths)
-        stack.pop()
-
-    def print_paths(self):
-        possible_paths = []
-        self.dfs(self.root, [], possible_paths)
-        for path in possible_paths:
-            possible = [board.repr_board() for board in path]
-            print(side_by_side(*possible))
-            print("\n")
-        
-
-
-def side_by_side(*strs: list[str]):
-    str_arrs = [s.split("\n") for s in strs]
-    result = ""
-    for i in range(len(str_arrs[0])):
-        result += "    ".join(s[i] for s in str_arrs)
-        result += "\n"
-    return result
-
-
-@dataclass
-class GameNode:
-    state: "GameState"
-    node_depth: int
-    children: list["GameNode"] | None = field(default=None)
-
-    def __init__(self, state, node_depth):
-        self.node_depth = node_depth
-        self.state = state
-        self.children = None
-
-    def __hash__(self):
-        return self.state.__hash__()
-
-    def __eq__(self, other):
-        if not isinstance(other, GameNode):
-            return False
-        return self.state == other.state
-
-    def init_children(self) -> None:
-        if self.children is None:
-            self.children = [
-                GameNode(state, self.node_depth + 1)
-                for state in self.state.next_states()
-            ]
-
-    def best_minimax(
-        self, maximizingPlayer, tree_depth: int, alpha: float = -inf, beta: float = inf
-    ) -> tuple[int, "GameNode | None"]:
-        if self.node_depth > tree_depth or abs(self.state.score) == inf:
-            return self.state.score, None  # score and GameNode
-        
-        self.init_children()
-
-        if not self.children:
-            return self.state.score, None
-
-        if maximizingPlayer:
-            best_score = -inf
-            best_child = None
-            for child in self.children:
-                score, _ = child.best_minimax(not maximizingPlayer, tree_depth, alpha, beta)
-                if best_score <= score:
-                    best_score = score
-                    best_child = child
-                alpha = max(best_score, alpha)
-                if alpha >= beta:
-                   break
-            return best_score, best_child
-        else:
-            best_score = inf
-            best_child = None
-            for child in self.children:
-                score, _ = child.best_minimax(not maximizingPlayer, tree_depth, alpha, beta)
-                if best_score >= score:
-                    best_score = score
-                    best_child = child
-                beta = min(best_score, beta)
-                if alpha >= beta:
-                   break
-            return best_score, best_child
-
-
 @dataclass
 class GameState:
     board: list[list[Tile]] = field(default_factory=new_board)
@@ -152,52 +28,36 @@ class GameState:
     def __post_init__(self) -> None:
         self.score = self._count_score()
 
-    def repr_board(self) -> str:
+    def __str__(self) -> str:
         topbar = f"+-curr:{self.current_player}-+"
-        btmbar = f"+- {self.score}--+"
+        btmbar = f"+-|{self.score: 4}|-+"
         result = "\n".join("|" + "".join(t for t in row) + "|" for row in self.board)
         return f"{topbar}\n{result}\n{btmbar}"
 
-    def __eq__(self, other):
+    def __eq__(self, other: "GameState") -> bool:
         if not isinstance(other, GameState):
             return False
         return self.board == other.board and self.current_player == other.current_player
 
-    def __hash__(self):
-        return hash(self.current_player + self.repr_board())
+    def __hash__(self) -> int:
+        return hash(self.current_player + self.__str__())
 
     @staticmethod
-    def _is_diagonal(dx: int, dy: int) -> bool:
-        return abs(dx) == abs(dy)
-        # sprawdzanie czy mozna dojsc do miejsca x,y, trzeba bedzie jakos zrobić funkcje która
-        # sprawdza czy da sie w ogole dojsc na te pole uzywając tego skośnego chodzenia
-
-    @staticmethod
-    def _is_capture(dx: int, dy: int) -> bool:  # added
+    def _is_capture(dx: int, dy: int) -> bool:
         if max(abs(dx), abs(dy)) == 1:
             return False
         return True
-        # sprawdza czy ruch jest biciem
 
     @property
-    def opponent(self):
+    def opponent(self)->str:
         return "b" if self.current_player == "r" else "r"
 
-    def canMoveOneTile(
-        self, from_x: int, from_y: int, to_x: int, to_y: int, figure: chr
-    ):
-        if figure == "b":
-            return from_x < to_x
-        if figure == "r":
-            return from_x > to_x
-        return True
-
     @staticmethod
-    def in_bound(x, y):
+    def in_bound(x: int , y: int) -> bool:
         return 0 <= x < 8 and 0 <= y < 8
 
-    def bfs(self, x, y) -> list["GameState"]:
-        next_capture_states: set["GameState"] = set()
+    def bfs(self, x: int, y: int) -> list["GameState"]:
+        next_capture_states = set()
         directions = [[-1, -1], [-1, 1], [1, 1], [1, -1]]
         q = [(self, x, y, False)]
         is_super = self.board[y][x].upper() == self.board[y][x]
@@ -242,8 +102,6 @@ class GameState:
         :return: list of all game states with next turn
         :rtype: GameState
         """
-        # generalnie wymagania są takie:
-        # 1. działa
         next_possible_states: list["GameState"] = []
         has_to_capture = False
         next_moves = [[-1, -1], [-1, 1], [1, 1], [1, -1]]
@@ -287,7 +145,10 @@ class GameState:
 
     def with_move(self, from_x: int, from_y: int, to_x: int, to_y: int) -> "GameState":
         """
-        Perform a valid move and
+        Creates a new game with the specified move. 
+        If this move does not capture the enemy, the turn ends.
+
+        :return: new game state after a move has been made
         """
         delta_x, delta_y = to_x - from_x, to_y - from_y
 
@@ -331,27 +192,3 @@ class GameState:
             return inf
         score = (r - b) + (3 / 2) * (R - B)
         return score
-    
-if __name__ == "__main__":
-    bot1 = MiniMaxGameTree(GameNode(GameState(new_board()), 0), 6)  # b player
-    bot2 = MiniMaxGameTree(GameNode(GameState(new_board()), 0), 3)  # r player
-
-    child_node_1 = bot1.minimax_move(True, None)
-    print(child_node_1.state.repr_board())
-
-    while True:
-        child_node_2 = bot2.minimax_move(False, child_node_1)
-        if not child_node_2:
-            break
-        print("after bot2 move:\n", child_node_2.state.repr_board())
-        # bot2.print_paths()
-        child_node_1 = bot1.minimax_move(False, child_node_2)
-        
-        if not child_node_1:
-            break
-        print("after move bot1:\n", child_node_1.state.repr_board())
-        # bot1.print_paths()
-        if abs(child_node_2.state.score) == inf or abs(child_node_1.state.score) == inf:
-            break
-        
-    print("game over")
