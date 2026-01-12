@@ -10,10 +10,11 @@ class MiniMaxGameBot:
     def __init__(self, root_node: "GameNode", tree_depth: int) -> None:
         self.root: "GameNode" = root_node
         self.tree_depth: int = tree_depth
-
-    def minimax_move(self, first_move: bool, root_state: "GameState") -> "GameState | None":
+    
+    def minimax_move(self, first_move: bool, root_state: "GameState | None") -> GameState | None:
         if not first_move:
             self.root.init_children()
+            assert self.root.children is not None
             for child in self.root.children:
                 if child.state == root_state:
                     self.root = child
@@ -48,3 +49,4 @@ class MiniMaxGameBot:
             possible = [board.__str__() for board in path]
             print(side_by_side(*possible))
             print("\n")
+
