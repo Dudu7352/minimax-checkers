@@ -53,23 +53,23 @@ class GameNode:
             best_score = -inf
             for child in self.children:
                 score, _ = child.best_minimax(not maximizing_player, tree_depth, alpha, beta)
-                if best_score < score:
+                if score > best_score:
                     best_score = score
                     best_child = child
+                alpha = max(alpha, best_score)
                 if best_score >= beta:
                     break
-                alpha = max(alpha, best_score)
             return best_score, best_child
         else:
             best_score = inf
             for child in self.children:
                 score, _= child.best_minimax(not maximizing_player, tree_depth, alpha, beta)
-                if best_score > score:
+                if score < best_score:
                     best_score = score
                     best_child = child
+                beta = min(beta, best_score)
                 if best_score <= alpha:
                     break
-                beta = min(beta, best_score)
             return best_score, best_child
     
 
