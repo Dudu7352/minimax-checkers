@@ -3,19 +3,20 @@ from checkers.print import side_by_side
 from checkers.state import GameState
 
 
-class MiniMaxGameTree:
+class MiniMaxGameBot:
     tree_depth: int
     root: "GameNode"
 
     def __init__(self, root_node: "GameNode", tree_depth: int) -> None:
         self.root: "GameNode" = root_node
         self.tree_depth: int = tree_depth
-
-    def minimax_move(self, first_move: bool, root_node: "GameNode") -> "GameNode":
+    
+    def minimax_move(self, first_move: bool, root_state: "GameState | None") -> GameState | None:
         if not first_move:
             self.root.init_children()
+            assert self.root.children is not None
             for child in self.root.children:
-                if child == root_node:
+                if child.state == root_state:
                     self.root = child
                     break
             else:
@@ -30,7 +31,7 @@ class MiniMaxGameTree:
             return None
 
         self.root = best_child
-        return self.root
+        return self.root.state
 
     def dfs(self, node: "GameNode", stack: list["GameState"], possible_paths: list[list["GameState"]]) -> None:
         stack.append(node.state)
@@ -48,3 +49,4 @@ class MiniMaxGameTree:
             possible = [board.__str__() for board in path]
             print(side_by_side(*possible))
             print("\n")
+

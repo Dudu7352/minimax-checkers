@@ -6,7 +6,7 @@ from typing import Literal
 Tile = Literal["b", "B", "r", "R", " "]
 
 
-def new_board() -> list[str]:
+def new_board() -> list[list[Tile]]:
     board = list()
     board.append(list(" b b b b"))
     board.append(list("b b b b "))
@@ -18,12 +18,37 @@ def new_board() -> list[str]:
     board.append(list("r r r r "))
     return board
 
+# def new_board() -> list[list[Tile]]:
+#     board = list()
+#     board.append(list("   B    "))
+#     board.append(list("        "))
+#     board.append(list("        "))
+#     board.append(list("    B   "))
+#     board.append(list("        "))
+#     board.append(list("      R "))
+#     board.append(list("        "))
+#     board.append(list("    R   "))
+#     return board
+
+
+# def new_board() -> list[list[Tile]]:
+#     board = list()
+#     board.append(list("        "))
+#     board.append(list("    B   "))
+#     board.append(list("        "))
+#     board.append(list("    R   "))
+#     board.append(list("        "))
+#     board.append(list("        "))
+#     board.append(list("        "))
+#     board.append(list("    R   "))
+#     return board
+
 
 @dataclass
 class GameState:
     board: list[list[Tile]] = field(default_factory=new_board)
     current_player: Literal["r", "b"] = field(default="b")
-    score: float = field(init=None)
+    score: float = field(init=False)
 
     def __post_init__(self) -> None:
         self.score = self._count_score()
@@ -49,7 +74,7 @@ class GameState:
         return True
 
     @property
-    def opponent(self)->str:
+    def opponent(self)->Literal["r", "b"]:
         return "b" if self.current_player == "r" else "r"
 
     @staticmethod
@@ -59,7 +84,7 @@ class GameState:
     def bfs(self, x: int, y: int) -> list["GameState"]:
         next_capture_states = set()
         directions = [[-1, -1], [-1, 1], [1, 1], [1, -1]]
-        q = [(self, x, y, False)]
+        q: list[tuple[GameState, int, int, bool]] = [(self, x, y, False)]
         is_super = self.board[y][x].upper() == self.board[y][x]
 
         while q:
